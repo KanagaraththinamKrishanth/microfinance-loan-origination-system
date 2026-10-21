@@ -1,0 +1,39 @@
+name: microfinance-loan-origination
+services:
+  - name: backend
+    image: <your-acr-name>.azurecr.io/microfinance-backend:latest
+    ingress:
+      external: true
+      targetPort: 5000
+      transport: auto
+    environment:
+      - name: PORT
+        value: "5000"
+      - name: DB_HOST
+        secretRef: db-host
+      - name: DB_PORT
+        value: "5432"
+      - name: DB_NAME
+        secretRef: db-name
+      - name: DB_USER
+        secretRef: db-user
+      - name: DB_PASSWORD
+        secretRef: db-password
+      - name: JWT_SECRET
+        secretRef: jwt-secret
+      - name: CORS_ORIGIN
+        value: https://<frontend-url>
+    cpu: 0.5
+    memory: 1Gi
+
+  - name: frontend
+    image: <your-acr-name>.azurecr.io/microfinance-frontend:latest
+    ingress:
+      external: true
+      targetPort: 5173
+      transport: auto
+    environment:
+      - name: VITE_API_BASE_URL
+        value: https://<backend-url>/api
+    cpu: 0.5
+    memory: 1Gi
