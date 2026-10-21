@@ -2,18 +2,35 @@ const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
 const morgan = require('morgan');
+const compression = require('compression');
+const rateLimit = require('express-rate-limit');
 const env = require('./config/env');
 
 const app = express();
 
-app.use(helmet());
+app.disable('x-powered-by');
+app.use(compression());
+app.use(helmet({
+  crossOriginResourcePolicy: { policy: 'cross-origin' }
+}));
 app.use(cors({
   origin: env.CORS_ORIGIN,
-  credentials: true
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
 }));
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
-app.use(morgan('dev'));
+app.use(morgan(env.NODE_ENV === 'production' ? 'combined' : 'dev'));
+
+const apiLimiter = rateLimit({
+  windowMs: env.RATE_LIMIT_WINDOW_MS,
+  max: env.RATE_LIMIT_MAX_REQUESTS,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { success: false, message: 'Too many requests from this IP, please try again later.' }
+});
+app.use('/api', apiLimiter);
 
 const authRoutes = require('./routes/auth.routes');
 const branchRoutes = require('./routes/branch.routes');
@@ -30,7 +47,12 @@ const reportRoutes = require('./routes/report.routes');
 const auditRoutes = require('./routes/audit.routes');
 
 app.get('/health', (req, res) => {
-  res.json({ status: 'ok', service: 'microfinance-api' });
+  res.json({
+    status: 'ok',
+    service: 'microfinance-api',
+    environment: env.NODE_ENV,
+    timestamp: new Date().toISOString()
+  });
 });
 
 app.use('/api/auth', authRoutes);
@@ -50,7 +72,7 @@ app.use('/api/audit', auditRoutes);
 const errorHandler = require('./middleware/errorHandler');
 
 app.use((req, res) => {
-  res.status(404).json({ message: 'Route not found' });
+  res.status(404).json({ success: false, message: 'Route not found' });
 });
 
 app.use(errorHandler);

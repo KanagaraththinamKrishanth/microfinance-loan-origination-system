@@ -1,6 +1,5 @@
-const app = require('./app');
-const env = require('./config/env');
 const { query } = require('./config/db');
+const env = require('./config/env');
 
 const startServer = async () => {
   try {
@@ -11,9 +10,20 @@ const startServer = async () => {
     process.exit(1);
   }
 
-  app.listen(env.PORT, () => {
+  const server = require('./app').listen(env.PORT, () => {
     console.log(`Server running on port ${env.PORT}`);
   });
+
+  const shutdown = (signal) => {
+    console.log(`Received ${signal}. Shutting down gracefully...`);
+    server.close(async () => {
+      console.log('HTTP server closed.');
+      process.exit(0);
+    });
+  };
+
+  process.on('SIGTERM', () => shutdown('SIGTERM'));
+  process.on('SIGINT', () => shutdown('SIGINT'));
 };
 
 startServer();
